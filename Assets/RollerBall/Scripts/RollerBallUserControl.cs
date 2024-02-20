@@ -11,12 +11,11 @@ public class RollerBallUserControl : MonoBehaviour
     private Transform cameraTransform; // A reference to the main camera in the scenes transform
     private Vector3 camForward, camRight; // The current forward direction of the camera
     private Vector3 moveInputDirection, lookInputDirection;
-    public bool jumpButton { get; private set; }
-    public bool dashButton { get; private set; }
+    private bool jumpButton;
+    private bool dashButton;
 
-    public Vector3 movementDirection { get; private set; }
-    public Vector3 lookDirection { get; private set; }
-
+    private Vector3 movementDirection;
+    private Vector3 lookDirection;
 
 
     private void Awake()
@@ -53,13 +52,35 @@ public class RollerBallUserControl : MonoBehaviour
             case InputActionPhase.Waiting:
                 break;
             case InputActionPhase.Started:
-                jumpButton = true;
-                ball.Jump();
+                ball.ApplyJump();
+                switch (ball.state)
+                {
+                    case PlayerState.Grounded:
+                        //
+                        break;
+                    case PlayerState.Airborne:
+                        //
+                        break;
+                    default:
+                        
+                        break;
+                }
+                
                 break;
             case InputActionPhase.Performed:
                 break;
             case InputActionPhase.Canceled:
-                jumpButton = false;
+                switch (ball.state)
+                {
+                    case PlayerState.Grounded:
+                        //  
+                        break;
+                    case PlayerState.Airborne:
+                        ball.shouldDampenJump = true;
+                        break;
+                    default:
+                        break;
+                }
                 break;
             default:
                 break;
@@ -78,52 +99,29 @@ public class RollerBallUserControl : MonoBehaviour
 
     private void FixedUpdate()
     {
-        ball.Move(movementDirection);
-
         switch (ball.state)
         {
             case PlayerState.Grounded:
+                OnFixedUpdateGrounded();
                 break;
             case PlayerState.Airborne:
+                OnFixedUpdareAirborne();
                 break;
             default:
                 break;
         }
     }
 
-    //void SwitchState(PlayerState newState)
-    //{
-    //    OnExitState(ball.state);
-    //    ball.state = newState;
-    //    OnEnterState(newState);
-    //}
+    void OnFixedUpdateGrounded()
+    {
+        ball.GroundedMove(movementDirection);
+    }
 
-    //void OnEnterState(PlayerState state)
-    //{
-    //    switch (state)
-    //    {
-    //        case PlayerState.Grounded:
-    //            //ChangeMovementData(groundMovement);
-    //            //EVALUATE!
-    //            break;
-    //        case PlayerState.Airborne:
-    //            SetMovementData(airMovement);
-    //            break;
-    //        default:
-    //            break;
-    //    }
-    //}
+    void OnFixedUpdareAirborne()
+    {
+        ball.AirborneMove(movementDirection);
+        if(ball.shouldDampenJump) ball.ApplyJumpCutoff();
+    }
 
-    //void OnExitState(PlayerState state)
-    //{
-    //    switch (state)
-    //    {
-    //        case PlayerState.Grounded:
-    //            break;
-    //        case PlayerState.Airborne:
-    //            break;
-    //        default:
-    //            break;
-    //    }
-    //}
+    
 }

@@ -49,7 +49,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rb: {fileID: 5400000}
-  controller: {fileID: 6864614117557004358}
+  model: {fileID: 1578785233320445796}
   groundMovement: {fileID: 11400000, guid: 92b091f6cf049e745a9cfb6a3df1f601, type: 2}
   airMovement: {fileID: 11400000, guid: c4f8fd7f422150f4eb74fa543b0b9c03, type: 2}
   minSlopeAngle: 15
@@ -63,10 +63,10 @@ MonoBehaviour:
     higherAngle: 45
     slopeMovementData: {fileID: 11400000, guid: a241828fe4dd57848bb838303443f2f0, type: 2}
   jumpHeight: 2.5
-  jumpVelocity: 2
-  jumpCutoff: 2
+  shouldDampenJump: 0
+  jumpCutOffFactor: 2
   fallSpeedCap: 12
-  model: {fileID: 1578785233320445796}
+  debugPanel: {fileID: 0}
 --- !u!54 &5400000
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -243,7 +243,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6f916a616d545d4c82fe7652f9cae9d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  orientationObject: {fileID: 0}
 --- !u!114 &726326313677341151
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -5,11 +5,14 @@ using UnityEngine;
 public class MovingPlatformCollisionManager : MonoBehaviour
 {
     private GameObject player;
+    private Vector3 oldPosition;
+    private Vector3 computedVelocity;
 
     private void Start()
     {
         // Trova l'oggetto con il tag "Player"
         player = GameObject.FindGameObjectWithTag("Player");
+        oldPosition = transform.position;
     }
 
     private void OnCollisionStay(Collision collision)
@@ -20,7 +23,7 @@ public class MovingPlatformCollisionManager : MonoBehaviour
             // Controlla se la normale del contatto è uguale al vettore della gravità
             foreach (ContactPoint contact in collision.contacts)
             {
-                if (Vector3.Dot(contact.normal, Physics.gravity.normalized) >= .9f)
+                if (Vector3.Dot(contact.normal, Physics.gravity.normalized) >= .9f) // Get Slope?
                 {
                     // Rende il giocatore un figlio della piattaforma
                     player.transform.parent = transform;
@@ -37,5 +40,10 @@ public class MovingPlatformCollisionManager : MonoBehaviour
         {
             player.transform.parent = null;
         }
+    }
+
+    private void FixedUpdate()
+    {
+        computedVelocity = (transform.position - oldPosition) / Time.fixedDeltaTime;
     }
 }
