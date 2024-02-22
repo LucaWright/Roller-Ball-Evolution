@@ -13,16 +13,24 @@ public class RollerBall : MonoBehaviour
     [SerializeField] private Rigidbody rb;
     [SerializeField] private GameObject model;
 
+    private MovementData activeMovementData;
     private float acceleration, maxSpeed, deceleration, turningFactor;
-    public MovementData activeMovementData { get; private set; }
+
+    public PlayerState state { get; private set; }
+    private float sphereRadius;
+    private Nullable<Vector3> groundNormal;
+
     [Header("Movement")]
     public MovementData groundMovement;
     public MovementData airMovement;
     [Header("Slopes")]
-    [Range (0f, 89.9f)] public float minSlopeAngle = 0f;
-    [Range (0f, 89.9f)] public float maxSlopeAngle = 45f;
-    
-    public bool autoSlope = true;
+    [Tooltip("The minimum slope angle the player can climb."),
+    SerializeField, Range(0f, 89.9f)] private float minSlopeAngle = 0f;
+    [Tooltip("The maximum slope angle the player can climb."),
+    SerializeField, Range(0f, 89.9f)] private float maxSlopeAngle = 45f;
+
+    [Tooltip("Automatically handles the forces acting on the player during slopes."),
+    SerializeField] private bool autoSlope = true;
     private float autoSlopeModifier;
     [Space]
     public SlopeHandler[] manualSlopes;
@@ -34,61 +42,46 @@ public class RollerBall : MonoBehaviour
     }
 
     [Header("Jumps")]
-    //Fare array per Numero di salti?
-    /* PARAMETRI NECESSARI!
-     * 1. Altezza Salto
-     * 2. Modificatori: AirBrakeToZero, CannotAccelerateForward... Vedi, perché ci sarà da smanettare
-     * 3. Ascending multiplier!
-     * 4. Cutoff. Da clampare, eh!
-     * 
-     * 
-     */
-
-    [HideInInspector] public bool shouldDampenJump;
+    private bool shouldDampenJump; // VEDI DI RENDERE PRIVATE
+    private int jumpCount;
     // CREARE LO STRUCT!
-    public float jumpHeight = 2f;
-    public float jumpCutOffFactor = 2f;
+    [System.Serializable]
+    public struct JumpHandler
+    {
+        [Min (0.1f)]        public float jumpHeight;
+        [Tooltip("The factor by which gravity is dampened during the upward phase of the jump."),
+        Range (0.1f, 1f)]   public float gravityDampOnRise;
+        [Tooltip("The factor by which the player's upward velocity is cut off when the jump button is released."),
+        Min (1f)]           public float jumpCutOffFactor;        
+    }
+    public JumpHandler[] jumpSettings = new JumpHandler[]
+    {
+        new JumpHandler {   jumpHeight = 2.5f,
+                            gravityDampOnRise = 1f,
+                            jumpCutOffFactor = 3f
+                        }
+    };
     public float fallSpeedCap = 12f;
-    //[Header("Dash")]
-    //[Header("Juice")]
 
-    public PlayerState state { get; private set; }
-    private float sphereRadius;
-    private Nullable<Vector3> groundNormal;
+    [Header("Dash")]
+    [SerializeField, Min(0.1f)] private float dashSpeed;
+    [SerializeField, Min(0.1f)] private float dashDuration;
+    [Tooltip("On dash start, freeze the player for this number of frames"),
+    SerializeField, Min(0)] private int dashFreezeFrames;
+    //Camera Shake
 
-    Vector3 pos;
+    private int dashCount;
+    private float dashTimeStamp;
+    [Tooltip("The maximum number of dashes the player can chain together."),
+    SerializeField] private int maxDashChain;
+    [Tooltip("The cooldown between chained dashes."),
+    SerializeField] private float chainedDashCooldown;
+    [Tooltip("The cooldown between a completed dash chain and a new one."),
+    SerializeField] private float dashCooldown;
 
+    [Header("Debug")]
     public TextMeshProUGUI debugPanel;
     bool turningMod;
-    /* ET AL.
-     * PER JUMP
-     * > ascending multiplier
-     * > jump cutoff (intensità o time?)
-     * > doubleJump?
-     * Dash?
-     * 
-     * Juice?
-     */
-
-
-    /* TO DO LIST
-     *      
-     * 2. Idee di polish
-     *      Il turning factor lo utilizziamo per le "sgommate"
-     *      Proviamo la tecnica che rende figlio di un game object per lo squash and stretch
-     *      
-     *  SALTO    
-     * 3. Ignore Forward input per il salto, in modo che venga percepito solo il momento frenante
-     * 4. Can't turn, per evitare che si possa tornare indietro, ma solo fermarsi
-     * 5. Lista di salti, per fare doppi, tripli, quadrupli salti! Quanti se ne vuole!
-     * 
-     * 6. Cercare 3D platform asset di vario tipo: ostacoli, VFX, se puoi SFX
-     * 7. Ricorda che devi ripassarti di brutto probuilder!
-     * 
-     * 8. VA RIVISTO IL SALTO SUGLI SLOPE! SENNO' SI BARA SUGLI SLOPE!!!
-     * 
-     * 9. Creare per le piattaforme un parametro che immagazzina gli spostamenti, in modo da poter all'occorrenza fornire una velocity aggiuntiva alla sfera, se si ci stacca.
-     */
 
     void OnValidate()
     {
@@ -121,19 +114,62 @@ public class RollerBall : MonoBehaviour
 
     private void Start()
     {
-        //rb = GetComponent<Rigidbody>();
-        //controller = GetComponentInChildren<RollerBallUserControl>();
+        rb.drag = rb.angularDrag = 0f;
         sphereRadius = GetComponent<SphereCollider>().radius;
+        groundNormal = Vector3.up;
         SetMovementData(groundMovement);
+        dashTimeStamp = -dashCooldown;
     }
 
     private void Update()
     {
         debugPanel.text =   state + 
                             "<br> " + activeMovementData + 
-                            "<br>Speed: " + Vector3.ProjectOnPlane(rb.velocity, GetMovementPlaneNormal()).magnitude +
+                            "<br>Speed: " + /*Vector3.ProjectOnPlane(*/rb.velocity/*, GetMovementPlaneNormal())*/.magnitude +
                             "<br>Turning? " + turningMod;
     }
+
+    #region STATE MACHINE
+    public void SwitchState(PlayerState newState)
+    {
+        OnExitState(state);
+        state = newState;
+        OnEnterState(newState);
+    }
+
+    void OnEnterState(PlayerState state)
+    {
+        switch (state)
+        {
+            case PlayerState.Grounded:
+                EvaluateGroundedMovementData((Vector3)groundNormal);
+                dashCount = 0;
+                break;
+            case PlayerState.Airborne:
+                SetMovementData(airMovement);
+                shouldDampenJump = false;
+                break;
+            default:
+                break;
+        }
+    }
+
+    void OnExitState(PlayerState state)
+    {
+        switch (state)
+        {
+            case PlayerState.Grounded:
+                break;
+            case PlayerState.Airborne:
+                shouldDampenJump = false;
+                jumpCount = 0;
+                break;
+            default:
+                break;
+        }
+    }
+    #endregion
+    #region COLLISIONS
 
     private void OnCollisionExit(Collision collision)
     {
@@ -215,62 +251,18 @@ public class RollerBall : MonoBehaviour
         }
         return groundNormal;
     }
-
-    public void SwitchState(PlayerState newState)
-    {
-        OnExitState(state);
-        state = newState;
-        OnEnterState(newState);
-    }
-
-    void OnEnterState(PlayerState state)
-    {
-        switch (state)
-        {
-            case PlayerState.Grounded:                
-                EvaluateGroundedMovementData((Vector3)groundNormal);                
-                break;
-            case PlayerState.Airborne:
-                SetMovementData(airMovement);
-                shouldDampenJump = false;
-                break;
-            default:
-                break;
-        }
-    }
-
-    void OnExitState(PlayerState state)
-    {
-        switch (state)
-        {
-            case PlayerState.Grounded:
-                break;
-            case PlayerState.Airborne:
-                shouldDampenJump = false;
-                break;
-            default:
-                break;
-        }
-    }
-
+    #endregion
+    #region GROUNDED & AIRBORN MOVEMENT
     public void GroundedMove(Vector3 desiredDirection)
     {
-        // Ricavo la normale del piano. Se Airborne, ritorna la normale del piano opposta alla forza di gravità.
-        var movementPlaneNormal = GetMovementPlaneNormal(); // In teoria... C'è già! è ground
+        var movementPlaneNormal = (Vector3)groundNormal;
 
-        // Scompongo la velocità tra componente parallela e perpendicolare al piano. Il movimento verrà applicato solo alla componente parallela.
         var normalPlaneVelocity = Vector3.ProjectOnPlane(rb.velocity, movementPlaneNormal);
         var normalAlignedVelocity = Vector3.Project(rb.velocity, movementPlaneNormal);
-
-        // Caloclo del modificatore di slope.
-        /* Il modificatore viene applicato principalmente da autoSlope.
-         * In caso di slope manuale, sotto maxSlopeAngle il modifier è sempre 1 -- vengono aggiornate le data. Che, a questo punto... VANNO AGGIORNATE DOPO!
-         */
 
         if (autoSlope)
         {
             autoSlopeModifier = SetAutoSlopeModifier(movementPlaneNormal);
-            Debug.Log(autoSlopeModifier);
         }
         else
         {
@@ -323,9 +315,15 @@ public class RollerBall : MonoBehaviour
     public void AirborneMove(Vector3 desiredDirection)
     {
         var movementNormal = -Physics.gravity.normalized;
-        // Scompongo la velocità tra componente parallela e perpendicolare al piano. Il movimento verrà applicato solo alla componente parallela.
+
         var normalPlaneVelocity = Vector3.ProjectOnPlane(rb.velocity, movementNormal);
         var normalAlignedVelocity = Vector3.Project(rb.velocity, movementNormal);
+
+        if (jumpCount > 0 && Vector3.Dot(normalAlignedVelocity, movementNormal) > 0)
+        {
+            var ascendingGravityMultipier = jumpSettings[jumpCount - 1].gravityDampOnRise;
+            rb.AddForce(-Physics.gravity * (1f - ascendingGravityMultipier), ForceMode.Acceleration);
+        }
 
         // Set sulla base della Movement Data attiva
         var maxSpeed = activeMovementData.maxSpeed;
@@ -361,6 +359,104 @@ public class RollerBall : MonoBehaviour
         ModelRotation(normalPlaneVelocity);
 
         rb.velocity = normalPlaneVelocity + normalAlignedVelocity;
+
+        if (shouldDampenJump) EvaluateJumpCutOff(normalAlignedVelocity);
+    }
+
+    void SetMovementData(MovementData newMovementData)
+    {
+        activeMovementData = newMovementData;
+
+        //acceleration = currentMovementData.acceleration;
+        //maxSpeed = currentMovementData.maxSpeed;
+        //deceleration = currentMovementData.deceleration;
+        //turningFactor = currentMovementData.turningFactor;
+    }
+    #endregion
+    #region EVALUATE SLOPE
+    void EvaluateGroundedMovementData(Vector3 normal)
+    {
+        var angle = Vector3.Angle(Physics.gravity, -normal);
+
+        if (angle < minSlopeAngle)
+        {
+            SetMovementData(groundMovement);
+        }
+        else
+        {
+            for (int i = 0; i < manualSlopes.Length; i++)
+            {
+                var slope = manualSlopes[i];
+
+                if (angle < slope.higherAngle && angle >= slope.lowerAngle)
+                {
+                    SetMovementData(slope.slopeMovementData);
+                }
+            }
+        }      
+    }
+
+    float SetAutoSlopeModifier(Vector3 normal)
+    {
+        var angle = Vector3.Angle(Physics.gravity, -normal);
+        var value = Mathf.Clamp01((angle - minSlopeAngle) / (maxSlopeAngle - minSlopeAngle));
+        return 1f - value;
+    }
+
+    float SetAutoSlopeModifier(float angle)
+    {
+        var value = Mathf.Clamp01((angle - minSlopeAngle) / (maxSlopeAngle - minSlopeAngle));
+        return 1f - value;
+    }
+    #endregion
+    #region JUMP & FALL
+
+    public void EvaluateJump()
+    {
+        jumpCount++;
+
+        if (jumpCount <= jumpSettings.Length)
+        {
+            shouldDampenJump = false;
+            var gravity = Physics.gravity;
+            var jumpHeight = jumpSettings[jumpCount - 1].jumpHeight;
+            var gravityDampOnRise = jumpSettings[jumpCount - 1].gravityDampOnRise;
+
+            var jumpNormal = groundNormal != null ? (Vector3)groundNormal : -gravity.normalized;
+
+            var jumpVector = Vector3.Project(gravity, jumpNormal) * gravityDampOnRise;
+            var jumpVelocity = Mathf.Sqrt(2 *  jumpHeight * jumpVector.magnitude);
+
+            var velocity = rb.velocity;
+            var angle = Vector3.Angle(gravity, -jumpNormal);
+            var normalPlaneVelocity = angle >= minSlopeAngle ? Vector3.ProjectOnPlane(velocity, jumpNormal) : Vector3.zero;
+
+            rb.velocity += jumpVelocity * jumpNormal - normalPlaneVelocity;
+        }        
+    }
+
+    public void ApplyJumpCutOff()
+    {
+        shouldDampenJump = true;
+    }
+
+    public void EvaluateJumpCutOff(Vector3 normalAlignedVelocity)
+    {
+        var gravityVector = Physics.gravity;
+        var upwardVelocity = Vector3.Dot(rb.velocity, gravityVector);
+        if (upwardVelocity < 0f)
+        {
+            var cutoffCount = Math.Clamp(jumpCount, 1, jumpSettings.Length);
+            var jumpCutOffFactor = jumpSettings[cutoffCount - 1].jumpCutOffFactor;
+            var cutOffAcceleration = gravityVector * jumpCutOffFactor - gravityVector;
+
+            cutOffAcceleration = Vector3.ClampMagnitude(cutOffAcceleration, normalAlignedVelocity.magnitude / Time.fixedDeltaTime);
+            rb.AddForce(cutOffAcceleration, ForceMode.Acceleration);
+        }
+        else
+        {
+            shouldDampenJump = false;
+        }
     }
 
     void CapToTermninalFallVelocity(ref Vector3 velocity)
@@ -378,82 +474,38 @@ public class RollerBall : MonoBehaviour
         }
     }
 
-    void EvaluateGroundedMovementData(Vector3 normal)
+    #endregion
+    #region DASH
+    public IEnumerator DashCoroutine(Vector3 movementDirection)
     {
-        var angle = Vector3.Angle(Physics.gravity, -normal);
+        var cooldown = dashCount < maxDashChain ? chainedDashCooldown : dashCooldown;
 
-        if (autoSlope)
-        {
-            autoSlopeModifier = SetAutoSlopeModifier(angle);
-            SetMovementData(groundMovement);
-        }
-        else
-        {
-            if (angle < minSlopeAngle)
-            {
-                SetMovementData(groundMovement);
-            }
-            else
-            {
-                for (int i = 0; i < manualSlopes.Length; i++)
-                {
-                    var slope = manualSlopes[i];
+        if (Time.time - dashTimeStamp < dashDuration + dashFreezeFrames * Time.fixedDeltaTime + cooldown) yield break;
 
-                    if (angle < slope.higherAngle && angle >= slope.lowerAngle)
-                    {
-                        SetMovementData(slope.slopeMovementData);
-                    }
-                }
-            }            
-        }        
-    }
+        dashCount %= maxDashChain;
+        dashCount++;
 
-    float SetAutoSlopeModifier(Vector3 normal)
-    {
-        var angle = Vector3.Angle(Physics.gravity, -normal);
-        var value = Mathf.Clamp01((angle - minSlopeAngle) / (maxSlopeAngle - minSlopeAngle));
-        return 1f - value;
-    }
-
-    float SetAutoSlopeModifier(float angle)
-    {
-        var value = Mathf.Clamp01((angle - minSlopeAngle) / (maxSlopeAngle - minSlopeAngle));
-        return 1f - value;
-    }
-
-    Vector3 GetMovementPlaneNormal() // La teniamo?
-    {
-        RaycastHit hitInfo;
-        if (Physics.Raycast(transform.position, Physics.gravity, out hitInfo, 1f + sphereRadius / Mathf.Cos(maxSlopeAngle)))
-        {
-            return hitInfo.normal;
-        }
-        return -Physics.gravity.normalized; // Se Airborne, ritorna la normale del piano
-    }
-
-    public void ApplyJump()
-    {
-        // If COUNT
+        dashTimeStamp = Time.time;
         
-        SwitchState(PlayerState.Airborne);
-        var jumpVector = Vector3.Project(Physics.gravity, GetMovementPlaneNormal());
-        var velocity = Mathf.Sqrt(2 * jumpHeight * jumpVector.magnitude); // Salto in direzione della normale? Sarebbe più corretto. OK, ma va rivisto!
-        rb.velocity += velocity * -Physics.gravity.normalized;
-    }
+        rb.useGravity = false;
 
-    public void ApplyJumpCutoff()
-    {
-        var gravityVector = Physics.gravity;
-        var upwardVelocity = Vector3.Dot(rb.velocity, gravityVector);
-        if (upwardVelocity < 0f)
+        var activeDashFrames = Mathf.RoundToInt(dashDuration / Time.fixedDeltaTime);
+
+        for (int i = 0; i < dashFreezeFrames; i++)
         {
-            var cutOffAcceleration = gravityVector * jumpCutOffFactor - gravityVector;
-            var projectedVelocity = Vector3.Project(rb.velocity, gravityVector);
-
-            cutOffAcceleration = Vector3.ClampMagnitude(cutOffAcceleration, projectedVelocity.magnitude / Time.fixedDeltaTime);
-            rb.AddForce(cutOffAcceleration, ForceMode.Acceleration);
+            rb.velocity = Vector3.zero;
+            yield return new WaitForFixedUpdate();
         }
+
+        for (int i = 0; i < activeDashFrames ; i++)
+        {
+            rb.velocity = movementDirection * dashSpeed;
+            yield return new WaitForFixedUpdate();
+        }
+
+        rb.useGravity = true;
     }
+    #endregion
 
     public void ModelRotation(Vector3 velocity)
     {
@@ -464,15 +516,5 @@ public class RollerBall : MonoBehaviour
 
         model.transform.Rotate(rotationAxis, angle, Space.World);
     }
-
-    void SetMovementData(MovementData newMovementData)
-    {
-        activeMovementData = newMovementData;
-
-        //acceleration = currentMovementData.acceleration;
-        //maxSpeed = currentMovementData.maxSpeed;
-        //deceleration = currentMovementData.deceleration;
-        //turningFactor = currentMovementData.turningFactor;
-    }   
 }
 

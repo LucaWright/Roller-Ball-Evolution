@@ -62,10 +62,17 @@ MonoBehaviour:
   - lowerAngle: 30
     higherAngle: 45
     slopeMovementData: {fileID: 11400000, guid: a241828fe4dd57848bb838303443f2f0, type: 2}
-  jumpHeight: 2.5
-  shouldDampenJump: 0
-  jumpCutOffFactor: 2
+  jumpSettings:
+  - jumpHeight: 2.5
+    gravityDampOnRise: 1
+    jumpCutOffFactor: 3
   fallSpeedCap: 12
+  dashSpeed: 9
+  dashDuration: 0.2
+  dashFreezeFrames: 2
+  maxDashChain: 2
+  chainedDashCooldown: 0.1
+  dashCooldown: 0.5
   debugPanel: {fileID: 0}
 --- !u!54 &5400000
 Rigidbody:
@@ -316,6 +323,22 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: 0b169478-72f9-4d72-8433-ea152f9debe8
     m_ActionName: Controlas/Jump[/XInputControllerWindows/buttonSouth]
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 6864614117557004358}
+        m_TargetAssemblyTypeName: RollerBallUserControl, Assembly-CSharp
+        m_MethodName: OnDash
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: 5acc8ba4-50c2-4127-813f-34e0c3a7c4ce
+    m_ActionName: Game/Dash[/XInputControllerWindows/buttonWest,/Keyboard/shift]
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: Game

@@ -52,7 +52,7 @@ public class RollerBallUserControl : MonoBehaviour
             case InputActionPhase.Waiting:
                 break;
             case InputActionPhase.Started:
-                ball.ApplyJump();
+                ball.EvaluateJump();
                 switch (ball.state)
                 {
                     case PlayerState.Grounded:
@@ -76,11 +76,44 @@ public class RollerBallUserControl : MonoBehaviour
                         //  
                         break;
                     case PlayerState.Airborne:
-                        ball.shouldDampenJump = true;
+                        ball.ApplyJumpCutOff();
                         break;
                     default:
                         break;
                 }
+                break;
+            default:
+                break;
+        }
+    }
+
+    public void OnDash(InputAction.CallbackContext context)
+    {
+        switch (context.phase)
+        {
+            case InputActionPhase.Disabled:
+                break;
+            case InputActionPhase.Waiting:
+                break;
+            case InputActionPhase.Started:
+                switch (ball.state)
+                {
+                    case PlayerState.Grounded:
+                        //
+                        break;
+                    case PlayerState.Airborne:
+                        movementDirection = movementDirection == Vector3.zero ? camForward : movementDirection; 
+                        StartCoroutine(ball.DashCoroutine(movementDirection));
+                        break;
+                    default:
+
+                        break;
+                }
+
+                break;
+            case InputActionPhase.Performed:
+                break;
+            case InputActionPhase.Canceled:
                 break;
             default:
                 break;
@@ -120,7 +153,6 @@ public class RollerBallUserControl : MonoBehaviour
     void OnFixedUpdareAirborne()
     {
         ball.AirborneMove(movementDirection);
-        if(ball.shouldDampenJump) ball.ApplyJumpCutoff();
     }
 
     
