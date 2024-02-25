@@ -52,7 +52,7 @@ public class RollerBallUserControl : MonoBehaviour
             case InputActionPhase.Waiting:
                 break;
             case InputActionPhase.Started:
-                ball.EvaluateJump();
+                StartCoroutine(ball.TryJump());
                 switch (ball.state)
                 {
                     case PlayerState.Grounded:
@@ -76,7 +76,7 @@ public class RollerBallUserControl : MonoBehaviour
                         //  
                         break;
                     case PlayerState.Airborne:
-                        ball.ApplyJumpCutOff();
+                        ball.EvaluateJumpCutOff();
                         break;
                     default:
                         break;
@@ -103,7 +103,7 @@ public class RollerBallUserControl : MonoBehaviour
                         break;
                     case PlayerState.Airborne:
                         movementDirection = movementDirection == Vector3.zero ? camForward : movementDirection; 
-                        StartCoroutine(ball.DashCoroutine(movementDirection));
+                        StartCoroutine(ball.TryDash(movementDirection));
                         break;
                     default:
 

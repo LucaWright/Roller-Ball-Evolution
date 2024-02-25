@@ -62,18 +62,108 @@ MonoBehaviour:
   - lowerAngle: 30
     higherAngle: 45
     slopeMovementData: {fileID: 11400000, guid: a241828fe4dd57848bb838303443f2f0, type: 2}
-  jumpSettings:
+  fallSpeedCap: 12
+  maxFallTime: 7
+  coyoteTime: 0.1
+  inputBuffer: 0.1
+  jumpController:
   - jumpHeight: 2.5
     gravityDampOnRise: 1
     jumpCutOffFactor: 3
-  fallSpeedCap: 12
+    jumpAnimationCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 1.9507085
+        outSlope: 1.9507085
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.13159543
+      - serializedVersion: 3
+        time: 0.25
+        value: 1.25
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.5
+        value: 1
+        inSlope: -2.175745
+        outSlope: -2.175745
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.14167868
+      - serializedVersion: 3
+        time: 0.84
+        value: 1
+        inSlope: -1.5301001
+        outSlope: -1.5301001
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.1280676
+        outWeight: 0.03623295
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: -0.010503147
+        outSlope: -0.010503147
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.19085932
+        outWeight: 0.33333334
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
   dashSpeed: 9
   dashDuration: 0.2
   dashFreezeFrames: 2
   maxDashChain: 2
-  chainedDashCooldown: 0.1
-  dashCooldown: 0.5
+  chainedDashCooldown: 0.05
+  rechargeDashSeriesOnGround: 1
+  dashSeriesCooldown: 0.5
+  dashSquashAndStretchCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0.00060272217
+      value: 1
+      inSlope: 8.617856
+      outSlope: 8.617856
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.071040034
+    - serializedVersion: 3
+      time: 0.1
+      value: 1.33
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0.017172908
+      outSlope: 0.017172908
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.044806402
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   debugPanel: {fileID: 0}
+  squashAndStretchController: {fileID: 0}
+  particles: {fileID: 0}
 --- !u!54 &5400000
 Rigidbody:
   m_ObjectHideFlags: 0
