@@ -52,6 +52,9 @@ MonoBehaviour:
   model: {fileID: 1578785233320445796}
   groundMovement: {fileID: 11400000, guid: 92b091f6cf049e745a9cfb6a3df1f601, type: 2}
   airMovement: {fileID: 11400000, guid: c4f8fd7f422150f4eb74fa543b0b9c03, type: 2}
+  OnBurnout:
+    m_PersistentCalls:
+      m_Calls: []
   minSlopeAngle: 15
   maxSlopeAngle: 45
   autoSlope: 0
@@ -127,8 +130,8 @@ MonoBehaviour:
   maxDashChain: 2
   chainedDashCooldown: 0.05
   rechargeDashSeriesOnGround: 1
-  dashSeriesCooldown: 0.5
-  dashSquashAndStretchCurve:
+  dashSeriesCooldown: 7
+  dashAnimationCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
