@@ -25,7 +25,6 @@ public class RollerBall : MonoBehaviour
     //private Nullable<Vector3> groundNormal;
     private Vector3 groundNormal, previousGroundNormal;
     private Vector3 overslopeNormal;
-    private HashSet<Vector3> normalsList = new HashSet<Vector3>();
 
     [CustomInspector.HorizontalLine("Movement", 5, FixedColor.Gray)]
     [SerializeField] private MovementData groundMovement;
@@ -260,7 +259,8 @@ public class RollerBall : MonoBehaviour
 
     void OnCollisionStay(Collision collision)
     {
-        previousGroundNormal = groundNormal; // Sistema di sicurezza, da calcolare durante i salti.
+        previousGroundNormal = groundNormal; // Workaround bug unity, per evitare errori durante i salti a contatto con pareti vericali
+        //
 
         switch (state)
         {
@@ -286,6 +286,7 @@ public class RollerBall : MonoBehaviour
     {
         if (collision.contactCount == 0)
         {
+            groundNormal = Vector3.zero;
             overslopeNormal = Vector3.zero;
             SwitchState(PlayerState.Airborne);
             //Debug.Log("N: " + collision.contactCount);
@@ -703,6 +704,11 @@ public class RollerBall : MonoBehaviour
                             previousGroundNormal != Vector3.zero ? previousGroundNormal :
                             overslopeNormal != Vector3.zero ? overslopeNormal : -gravity.normalized; // Da qui posso ricavare la dash direction?
 
+        Debug.Log("GN: " + groundNormal.magnitude + "; PGN: " + previousGroundNormal.magnitude + "; ON: " + overslopeNormal.magnitude);
+        //Debug.Break();
+
+        previousGroundNormal = Vector3.zero;
+
 
         //var jumpVector = Vector3.Project(gravity, jumpNormal) * gravityDampOnRise; //è qua che si potrebbe generare l'errore!
         //var jumpVelocity = Mathf.Sqrt(2 * jumpHeight * jumpVector.magnitude);
@@ -734,10 +740,10 @@ public class RollerBall : MonoBehaviour
 
         RotatateSquashAndStretchController(jumpNormal);
         timeToApexJump = jumpVelocity / gravity.magnitude;
-        SwitchCoroutine(SquashAndStretch(animationCurve, timeToApexJump));
+        ResetCoroutine(SquashAndStretch(animationCurve, timeToApexJump));
     }
 
-    private void SwitchCoroutine(IEnumerator newCoroutine)
+    private void ResetCoroutine(IEnumerator newCoroutine)
     {
         StopCoroutine(activeSquashAndStretchCoroutine);
         activeSquashAndStretchCoroutine = newCoroutine;
@@ -851,14 +857,12 @@ public class RollerBall : MonoBehaviour
         Camera.onPreRender += SquashAndStretchPreRender;
         Camera.onPostRender += SquashAndStretchPostRender;
 
-        Debug.Log("Conferma che vieni chiamata una volta");
-
         while ((Time.time - timeStamp) <= animationTime) // FORSE POSSO ELIMINARE FUNCTION TIME
         {
             yield return new WaitForFixedUpdate();
             var forwardScale = curve.Evaluate((Time.time - timeStamp) / animationTime);
             var planeScale = 1f + (1f - forwardScale);
-            collider.radius = sphereRadius / forwardScale;
+            collider.radius = forwardScale >= 1 ?  sphereRadius / forwardScale : sphereRadius / planeScale;
             squashAndStretchController.position = transform.position; // riposizionamento
             transform.parent = squashAndStretchController; // parentela
             squashAndStretchController.localScale = new Vector3(planeScale, planeScale, forwardScale); // scala secondo l'asse del parent
@@ -867,9 +871,12 @@ public class RollerBall : MonoBehaviour
         Camera.onPreRender -= SquashAndStretchPreRender;
         Camera.onPostRender -= SquashAndStretchPostRender;
 
+
         squashAndStretchController.localScale = Vector3.one;
         transform.localScale = Vector3.one;
         collider.radius = sphereRadius;
+
+        Debug.Log("Ho finito questa coroutine");
     }
     #endregion
     #region RENDER
@@ -896,6 +903,7 @@ public class RollerBall : MonoBehaviour
     void UndoPrevCoroutineChanges()
     {
         GetComponent<SphereCollider>().radius = sphereRadius;
+        transform.localScale = Vector3.one;
         squashAndStretchController.localScale = Vector3.one;
         this.transform.parent = null;
         Camera.onPreRender -= SquashAndStretchPreRender;
