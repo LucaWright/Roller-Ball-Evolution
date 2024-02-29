@@ -25,12 +25,13 @@ public class RollerBall : MonoBehaviour
     //private Nullable<Vector3> groundNormal;
     private Vector3 groundNormal;
     private Vector3 overslopeNormal;
+    private HashSet<Vector3> normalsList = new HashSet<Vector3>();
 
     [CustomInspector.HorizontalLine("Movement", 5, FixedColor.Gray)]
     [SerializeField] private MovementData groundMovement;
     [SerializeField] private MovementData airMovement;
-
     [SerializeField] private UnityEvent OnBurnout;
+
 
     [CustomInspector.HorizontalLine("Slopes", 5, FixedColor.Gray)]
     [Tooltip("The minimum slope angle (valui included) the player can climb."),
@@ -86,7 +87,7 @@ public class RollerBall : MonoBehaviour
     [SerializeField, Min(0.1f)] private float dashDuration;
     [Tooltip("On dash start, freeze the player for this number of frames"),
     SerializeField, Min(0)] private int dashFreezeFrames;
-    //Camera Shake
+    [SerializeField] private AnimationCurve dashAnimationCurve;
 
     private int dashCount;
     private float dashTimeStamp;
@@ -97,8 +98,10 @@ public class RollerBall : MonoBehaviour
     [SerializeField] private bool rechargeDashSeriesOnGround;
     [Tooltip("The cooldown between a completed dash chain and a new one."),
     CustomInspector.ShowIfNot(nameof(rechargeDashSeriesOnGround)),
-    SerializeField] private float dashSeriesCooldown;
-    public AnimationCurve dashAnimationCurve;
+    SerializeField] private float dashSeriesCooldown; 
+    [Tooltip("When true, the dash will be performed in the direction of the movement input rather than the direction of motion."),
+    SerializeField] private bool dashTowardsInputDirection;
+    [SerializeField] private UnityEvent OnDash;
 
     [CustomInspector.HorizontalLine("Debug", 3, FixedColor.Red)]
     public TextMeshProUGUI debugPanel;
@@ -167,7 +170,7 @@ public class RollerBall : MonoBehaviour
     }
     private void SetupCoroutine()
     {
-        activeSquashAndStretchCoroutine = TryDash(Vector3.zero);
+        activeSquashAndStretchCoroutine = TryDash(Vector3.forward, Vector3.forward);
     }
 
     private void Update() //debug
@@ -223,6 +226,15 @@ public class RollerBall : MonoBehaviour
     }
     #endregion
     #region COLLISIONS
+    // COME DEVE CAMBIARE TUTTO IL SISTEMA?
+    /* È facile che cose esplodano, quindi meglio creare un backup.
+     * L'idea è questa: le collisioni verranno gestite solo da OnCollisionEnter e OnCollisionExit
+     * ENTER:
+     * Controlla le normali e vedi se sono già storate. Altrimenti, sostituiscile.
+     * EXIT:
+     * elimina dallo storing la variabile corrispondente. Questo significa che i vettori devono essere identici e potrebbe dare adito ad errori.
+     * Ci proverò domani
+     */
     private void OnCollisionExit(Collision collision)
     {
         if (collision.contactCount == 0)
@@ -230,6 +242,10 @@ public class RollerBall : MonoBehaviour
             overslopeNormal = Vector3.zero;
             SwitchState(PlayerState.Airborne);
         }
+
+        //groundNormal = Vector3.zero;
+        //overslopeNormal = Vector3.zero;
+        //SwitchState(PlayerState.Airborne);
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -240,8 +256,9 @@ public class RollerBall : MonoBehaviour
                 if (collision.contactCount > 1)
                 {
                     FindNormals(collision.contacts);
-                    EvaluateGroundedMovementData(); // Creare una overslopeMovementData?
-                }             
+                    EvaluateGroundedMovementData();
+                    Debug.Log("Qua non ci entri mai, vero?"); // PORCODDIO, UNITY!! CAZZO TIENI UN ARRAY DI PUNTI DI CONTATTO SE POI NE RIESCI A RILEVARE SOLO UNO???
+                }
                 break;
             case PlayerState.Airborne:
                 // Ci pensa OnCollisionStay
@@ -249,6 +266,21 @@ public class RollerBall : MonoBehaviour
             default:
                 break;
         }
+
+        //switch (state)
+        //{
+        //    case PlayerState.Grounded:
+        //        FindNormal(collision.contacts[0]);
+        //        EvaluateGroundedMovementData();
+        //        //Debug.Log("Qua non ci entri mai, vero?");
+        //        break;
+        //    case PlayerState.Airborne:
+        //        FindNormal(collision.contacts[0]);
+        //        if (groundNormal != Vector3.zero) SwitchState(PlayerState.Grounded);
+        //        break;
+        //    default:
+        //        break;
+        //}
     }
 
     void OnCollisionStay(Collision collision)
@@ -256,8 +288,9 @@ public class RollerBall : MonoBehaviour
         switch (state)
         {
             case PlayerState.Grounded:
-                // Ci pensa OnCollisionEnter
-
+                // Ci pensa OnCollisionEnter : Mica tanto, se si passa da slope a grounded! Non lo rileva sempre!
+                FindNormals(collision.contacts);
+                EvaluateGroundedMovementData();
                 break;
             case PlayerState.Airborne:
                 FindNormals(collision.contacts); // No return
@@ -295,6 +328,39 @@ public class RollerBall : MonoBehaviour
             }
         }
     }
+
+    void FindNormal(ContactPoint contact)
+    {
+        float minAngle = maxSlopeAngle;
+        float maxAngle = maxSlopeAngle;
+        //groundNormal = Vector3.zero;
+        //overslopeNormal = Vector3.zero;
+
+        if (contact.normal == groundNormal || contact.normal == overslopeNormal) return;
+
+        var negativeNormal = -contact.normal;
+        float angle = Vector3.Angle(Physics.gravity, negativeNormal);
+        
+        if (angle >= maxAngle && angle <= 90)
+        {
+            maxAngle = angle;
+            overslopeNormal = contact.normal;
+            contactPoint = contact.point;
+        }
+        
+        if (angle < minAngle)
+        {
+            minAngle = angle;
+            groundNormal = contact.normal;
+            contactPoint = contact.point;
+        }
+    }
+
+    void CancelNormal(ContactPoint contact)
+    {
+        if (contact.normal == groundNormal) groundNormal = Vector3.zero;
+        if (contact.normal == overslopeNormal) overslopeNormal = Vector3.zero;
+    }
     #endregion
     #region GROUNDED & AIRBORN MOVEMENT
     public void GroundedMove(Vector3 desiredDirection)
@@ -306,7 +372,6 @@ public class RollerBall : MonoBehaviour
         var normalPlaneVelocity = Vector3.ProjectOnPlane(rb.velocity, movementPlaneNormal);
         var normalAlignedVelocity = Vector3.Project(rb.velocity, movementPlaneNormal);
 
-        // IS OVERSLOPE? Se no:
         if (autoSlope) autoSlopeModifier = AutoSlopeModifier(movementPlaneNormal);
         else { autoSlopeModifier = 1f; /*EvaluateGroundedMovementData(movementPlaneNormal);*/ }
 
@@ -329,39 +394,69 @@ public class RollerBall : MonoBehaviour
     {
         var gravityProjectionOnNormalPlane = Vector3.ProjectOnPlane(Physics.gravity, movementPlaneNormal);
         var isSloping = gravityProjectionOnNormalPlane != Vector3.zero ? true : false;
+        var directionDotClimb = Vector3.Dot(desiredDirection, -gravityProjectionOnNormalPlane.normalized); // >= 0 ... IN SALITA. Else: DISCESA
+
+        if (isSloping && directionDotClimb < 0) return normalPlaneVelocity;
 
         if (desiredDirection * autoSlopeModifier != Vector3.zero)
         {
-            if (isSloping && Vector3.Dot(desiredDirection, gravityProjectionOnNormalPlane) > 0) return normalPlaneVelocity; //posso metterlo prima? Controlla se la direzione è in salita
-
-            // APPLICO I MODIFICATORI
+            // Modificatori
             maxSpeed *= autoSlopeModifier;
+            if (directionDotClimb >= 0) acceleration = Mathf.Lerp(groundMovement.acceleration, acceleration, directionDotClimb);
             acceleration *= autoSlopeModifier * turningFactor;
             var isTurning = true;
             if (Vector3.Dot(desiredDirection, normalPlaneVelocity) >= 0f)
             {
                 turningFactor = 1f;
                 isTurning = false;
+                //TurningAnimation(normalPlaneVelocity, 1f, 1f);
             }
-            /*DEBUG*/
-            turningMod = isTurning;
+            else
+            {
+                PlayBurnoutEvent();
+                //TurningAnimation(normalPlaneVelocity, .66f, 1f);
+            }   /*DEBUG*/ turningMod = isTurning;
 
             rb.AddForce(-gravityProjectionOnNormalPlane, ForceMode.Acceleration); // Counteract gravity acceleration on slopes.
             normalPlaneVelocity = Vector3.MoveTowards(normalPlaneVelocity, desiredDirection * maxSpeed, acceleration * Time.fixedDeltaTime);
-
-            if (isTurning)
-            {
-                // TRIGGERA FEEDBACK ANIMAZIONI!
-                BurnoutEvent();
-            }
         }
         else
         {
             normalPlaneVelocity = Vector3.MoveTowards(normalPlaneVelocity, Vector3.zero, deceleration * Time.fixedDeltaTime);
             normalPlaneVelocity = Vector3.ClampMagnitude(normalPlaneVelocity, fallSpeedCap);
+
+            //TurningAnimation(normalPlaneVelocity, 1f, 1f);
         }
 
         return normalPlaneVelocity;
+    }
+
+    void TurningAnimation(Vector3 velocity, float maxDeformation, float delta)
+    {
+        var scaleY = transform.localScale.y;
+        scaleY = Mathf.MoveTowards(scaleY, Mathf.Lerp(1f, maxDeformation, Mathf.Clamp01(velocity.magnitude / Physics.gravity.magnitude)), delta * Time.fixedDeltaTime);
+        var collider = GetComponent<SphereCollider>().radius = sphereRadius * scaleY;
+        transform.localScale = new Vector3(1, scaleY, 1);
+
+        /* ASSE: quello perpendicolare alla normale.
+         * squash and stretch, e forse lo possiamo fare fuori da una coroutine
+         */
+
+        //RotatateSquashAndStretchController(velocity);
+
+        //Camera.onPreRender += SquashAndStretchPreRender;
+        //Camera.onPostRender += SquashAndStretchPostRender;
+        //var forwardScale = curve.Evaluate((Time.time - timeStamp) / animationTime);
+        //var planeScale = 1f + (1f - forwardScale);
+        //collider.radius = sphereRadius / forwardScale;
+        //if (forwardScale == float.NaN) Debug.Break();
+        //squashAndStretchController.position = transform.position; // riposizionamento
+        //transform.parent = squashAndStretchController; // parentela
+        //squashAndStretchController.localScale = new Vector3(planeScale, planeScale, forwardScale); // scala secondo l'asse del parent
+        //this.transform.parent = null;
+        //Camera.onPreRender -= SquashAndStretchPreRender;
+        //Camera.onPostRender -= SquashAndStretchPostRender;
+
     }
 
     public void AirborneMove(Vector3 desiredDirection)
@@ -418,8 +513,7 @@ public class RollerBall : MonoBehaviour
         if (desiredDirection != Vector3.zero)
         {
             turningFactor = Vector3.Dot(desiredDirection, normalPlaneVelocity) >= 0f ? 1f : turningFactor;
-            /*DEBUG*/
-            turningMod = turningFactor > 1f ? true : false;
+            /*DEBUG*/ turningMod = turningFactor > 1f ? true : false;
 
             acceleration *= turningFactor;
 
@@ -455,7 +549,7 @@ public class RollerBall : MonoBehaviour
             acceleration = Mathf.Clamp(acceleration, 0, Physics.gravity.magnitude);
             normalPlaneVelocity = Vector3.MoveTowards(normalPlaneVelocity, directionOnPlane * maxSpeed, acceleration * Time.fixedDeltaTime);
 
-            BurnoutEvent();
+            PlayBurnoutEvent();
         }
         else
         {
@@ -497,8 +591,8 @@ public class RollerBall : MonoBehaviour
         if (Vector3.Dot(desiredDirection, normalPlaneVelocity) >= 0f)
         {
             spinVelocity = Vector3.MoveTowards(spinVelocity, normalPlaneVelocity, acceleration / sphereRadius * Time.fixedDeltaTime); // acceleration / radius!
-            //spinVelocity = normalPlaneVelocity; // E SE LA METTESSIMO DIRETTAMENTE IN MODEL ROTATION?
             ModelRotation(spinVelocity);
+            TurningAnimation(normalPlaneVelocity, 1f, 1f);
         }
         else
         {
@@ -506,6 +600,8 @@ public class RollerBall : MonoBehaviour
             if (Vector3.Dot(desiredDirection, spinVelocity) < 0f) spinVelocity = Vector3.zero;
             spinVelocity = Vector3.MoveTowards(spinVelocity, desiredDirection * maxSpeed * turningFactor, acceleration / sphereRadius * Time.fixedDeltaTime); // velocity: cap arbitrario o maxSpeed * turningFactor? - acceleration / radius
             ModelRotation(spinVelocity);
+
+            if (state == PlayerState.Grounded) TurningAnimation(normalPlaneVelocity, .66f, 1f);
         }
 
     }
@@ -536,7 +632,7 @@ public class RollerBall : MonoBehaviour
     }
     #endregion
     #region EVENTS
-    private void BurnoutEvent()
+    private void PlayBurnoutEvent()
     {
         if (!particles.isPlaying)
         {
@@ -545,6 +641,10 @@ public class RollerBall : MonoBehaviour
         }
 
         OnBurnout.Invoke();
+    }
+    private void PlayOnDashEvent()
+    {
+        OnDash.Invoke();
     }
     #endregion
     #region EVALUATE SLOPE
@@ -587,7 +687,7 @@ public class RollerBall : MonoBehaviour
     #region JUMP & FALL
     public IEnumerator TryJump()
     {
-        if (overslopeNormal != Vector3.zero) yield break;
+        //if (groundNormal == Vector3.zero && overslopeNormal != Vector3.zero) yield break;
 
         switch (state)
         {
@@ -634,13 +734,12 @@ public class RollerBall : MonoBehaviour
     {
         shouldJump = false;
 
-
         var gravity = Physics.gravity;
         var jumpHeight = jumpController[jumpCount].jumpHeight;
         var gravityDampOnRise = jumpController[jumpCount].gravityDampOnRise;
         var animationCurve = jumpController[jumpCount].jumpAnimationCurve;
 
-        var jumpNormal = groundNormal != Vector3.zero ? groundNormal : -gravity.normalized;
+        var jumpNormal = groundNormal != Vector3.zero ? groundNormal : overslopeNormal != Vector3.zero ? overslopeNormal : -gravity.normalized; // Da qui posso ricavare la dash direction?
 
         var jumpVector = Vector3.Project(gravity, jumpNormal) * gravityDampOnRise;
         var jumpVelocity = Mathf.Sqrt(2 * jumpHeight * jumpVector.magnitude);
@@ -693,21 +792,6 @@ public class RollerBall : MonoBehaviour
         }
     }
 
-    void CapToTermninalFallVelocity(ref Vector3 velocity)
-    {
-        float gravityAlignedSpeed = Vector3.Dot(velocity, Physics.gravity.normalized);
-
-        // Se la velocità supera il limite
-        if (gravityAlignedSpeed > fallSpeedCap)
-        {
-            // Calcola la velocità eccessiva
-            float excessSpeed = gravityAlignedSpeed - fallSpeedCap;
-
-            // Rimuovi la velocità eccessiva dalla velocità del Rigidbody
-            velocity -= Physics.gravity.normalized * excessSpeed;
-        }
-    }
-
     void CapToTermninalFallVelocity()
     {
         var velocity = rb.velocity;
@@ -721,7 +805,7 @@ public class RollerBall : MonoBehaviour
 
     #endregion
     #region DASH
-    public IEnumerator TryDash(Vector3 movementDirection) // Priorità su tutto!
+    public IEnumerator TryDash(Vector3 desiredDirection, Vector3 camForward) // E se lasciassi la scelta?
     {
         if (overslopeNormal != Vector3.zero) yield break;
 
@@ -738,10 +822,22 @@ public class RollerBall : MonoBehaviour
         dashCount++;
 
         dashTimeStamp = Time.time;
-        
+
+        Vector3 dashDirection;
+        if (dashTowardsInputDirection)
+        {
+            dashDirection = desiredDirection != Vector3.zero ? desiredDirection : camForward;
+        }
+        else
+        {
+            var movementPlaneVelocity = Vector3.ProjectOnPlane(rb.velocity, -Physics.gravity.normalized);
+            dashDirection = movementPlaneVelocity != Vector3.zero ? movementPlaneVelocity.normalized : camForward;
+        }        
 
         var activeDashFrames = Mathf.RoundToInt(dashDuration / Time.fixedDeltaTime);
         var gravity = Physics.gravity;
+
+        PlayOnDashEvent();
 
         for (int i = 0; i < dashFreezeFrames; i++)
         {
@@ -750,13 +846,13 @@ public class RollerBall : MonoBehaviour
             yield return new WaitForFixedUpdate();
         }
 
-        RotatateSquashAndStretchController(movementDirection);
+        RotatateSquashAndStretchController(dashDirection);
         activeSquashAndStretchCoroutine = SquashAndStretch(dashAnimationCurve, dashDuration * 2f);
         StartCoroutine(activeSquashAndStretchCoroutine);
 
         for (int i = 0; i < activeDashFrames ; i++)
         {
-            rb.velocity = movementDirection * dashSpeed;
+            rb.velocity = dashDirection * dashSpeed;
             ModelRotation(rb.velocity);
             rb.AddForce(-gravity, ForceMode.Acceleration);
             yield return new WaitForFixedUpdate();

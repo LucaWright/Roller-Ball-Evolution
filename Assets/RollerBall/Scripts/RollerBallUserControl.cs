@@ -14,7 +14,7 @@ public class RollerBallUserControl : MonoBehaviour
     private bool jumpButton;
     private bool dashButton;
 
-    private Vector3 movementDirection;
+    private Vector3 desiredMovementDirection;
     private Vector3 lookDirection;
 
 
@@ -102,8 +102,7 @@ public class RollerBallUserControl : MonoBehaviour
                         //
                         break;
                     case PlayerState.Airborne:
-                        movementDirection = movementDirection == Vector3.zero ? camForward : movementDirection; 
-                        StartCoroutine(ball.TryDash(movementDirection));
+                        StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
                         break;
                     default:
 
@@ -126,7 +125,7 @@ public class RollerBallUserControl : MonoBehaviour
         // calculate camera relative direction to move:
         camForward = Vector3.Scale(cameraTransform.forward, new Vector3(1, 0, 1)).normalized;
         camRight = cameraTransform.right;
-        movementDirection = (moveInputDirection.y * camForward + moveInputDirection.x * camRight).normalized;
+        desiredMovementDirection = (moveInputDirection.y * camForward + moveInputDirection.x * camRight).normalized;
         //Debug.DrawRay(transform.position, moveInputDirection, Color.grey);
     }
 
@@ -147,12 +146,12 @@ public class RollerBallUserControl : MonoBehaviour
 
     void OnFixedUpdateGrounded()
     {
-        ball.GroundedMove(movementDirection);
+        ball.GroundedMove(desiredMovementDirection);
     }
 
     void OnFixedUpdareAirborne()
     {
-        ball.AirborneMove(movementDirection);
+        ball.AirborneMove(desiredMovementDirection);
     }
 
     
