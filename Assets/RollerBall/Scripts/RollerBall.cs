@@ -128,6 +128,15 @@ public class RollerBall : MonoBehaviour
         sphereRadius = GetComponent<SphereCollider>().radius;
         SetupMovement();
         SetupCoroutine();
+
+        var gravity = Physics.gravity;
+
+        for (int i = 0; i < jumpController.Length; i++)
+        {
+            var jump = jumpController[i];
+
+            Debug.Log("Jump Max Speed: " + groundMovement.maxSpeed * (Mathf.Sqrt(2f * jump.jumpHeight / gravity.magnitude * jump.gravityDampOnRise) + Mathf.Sqrt(2f * jump.jumpHeight / gravity.magnitude)));
+        }
     }
     private void SetupMovement()
     {
@@ -239,13 +248,13 @@ public class RollerBall : MonoBehaviour
         switch (state)
         {
             case PlayerState.Grounded:
-                if (collision.contactCount > 1)
-                {
-                    FindNormals(collision.contacts);
-                    EvaluateGroundedMovementData();
-                }
-                //FindNormals(collision.contacts);
-                //EvaluateGroundedMovementData();
+                //if (collision.contactCount > 1)
+                //{
+                //    FindNormals(collision.contacts);
+                //    EvaluateGroundedMovementData();
+                //}
+                FindNormals(collision.contacts);
+                EvaluateGroundedMovementData();
                 //Debug.Log("EnterGround: " + groundNormal.magnitude + "; EnterOverslope: " + overslopeNormal.magnitude);
                 //Debug.Break();
                 break;
@@ -260,7 +269,6 @@ public class RollerBall : MonoBehaviour
     void OnCollisionStay(Collision collision)
     {
         previousGroundNormal = groundNormal; // Workaround bug unity, per evitare errori durante i salti a contatto con pareti vericali
-        //
 
         switch (state)
         {
@@ -272,6 +280,7 @@ public class RollerBall : MonoBehaviour
                 FindNormals(collision.contacts);
                 EvaluateGroundedMovementData();
                 //Debug.Log("StayGround: " + groundNormal.magnitude + "; StayOverslope: " + overslopeNormal.magnitude);
+                if (groundNormal == Vector3.zero && previousGroundNormal == Vector3.zero) SwitchState(PlayerState.Airborne);
                 break;
             case PlayerState.Airborne:
                 FindNormals(collision.contacts); // No return
@@ -432,6 +441,11 @@ public class RollerBall : MonoBehaviour
         {
             movementNormal = overslopeNormal;
             SwitchMovementData(groundMovement); // C'è da considerare che: OLTRE AL CONTATTO, C'È BISOGNO CHE IL MOVIMENTO SIA VERSO IL PIANO!
+
+            //NEW > Poco elegante, perché è praticamente uno stato a parte, ma tant'è.
+            jumpCount = 0; // Se vogliamo permettere i salti in overslope a contatto coi muri
+            dashCount = 0;
+            stateTimeStamp = Time.time;
         }
         else
         {
@@ -455,7 +469,7 @@ public class RollerBall : MonoBehaviour
         }
         else
         {
-            normalPlaneVelocity = ApplyAirMovement(desiredDirection, normalPlaneVelocity);
+            normalPlaneVelocity = ApplyAirMovement(desiredDirection, normalPlaneVelocity); // Se volessi evitare la possibilità accelerare in aria?
         }
 
         //CapToTermninalFallVelocity(ref normalAlignedVelocity);
@@ -502,7 +516,7 @@ public class RollerBall : MonoBehaviour
         Quaternion rotation = Quaternion.AngleAxis(angle, rotationAxis);
 
         var directionOnPlane = rotation * desiredDirection;
-        Debug.DrawRay(transform.position, directionOnPlane * acceleration, Color.green);
+        //Debug.DrawRay(transform.position, directionOnPlane * acceleration, Color.green);
 
         if (Vector3.Dot(directionOnPlane, directionNormal) >= 0) // Se la direzione è verso il muro
         {
@@ -653,7 +667,7 @@ public class RollerBall : MonoBehaviour
         switch (state)
         {
             case PlayerState.Grounded:
-                if (jumpCount >= jumpController.Length) yield break;
+                if (jumpCount >= jumpController.Length) yield break; // può verificarsi? In teoria, no.
                 shouldJump = true;
                 shouldDampenJump = false;
                 break;
@@ -662,6 +676,11 @@ public class RollerBall : MonoBehaviour
                 {
                     shouldJump = true; 
                     shouldDampenJump = false; 
+                }
+                else if (jumpCount > 0 && jumpCount < jumpController.Length)
+                {
+                    shouldJump = true;
+                    shouldDampenJump = false;
                 }
                 else if (jumpCount >= jumpController.Length)
                 {
@@ -679,11 +698,6 @@ public class RollerBall : MonoBehaviour
                             yield return new WaitForEndOfFrame();
                         }
                     }                    
-                }
-                else
-                {
-                    shouldJump = true;
-                    shouldDampenJump = false;
                 }
                 break;
             default:
@@ -705,20 +719,10 @@ public class RollerBall : MonoBehaviour
                             overslopeNormal != Vector3.zero ? overslopeNormal : -gravity.normalized; // Da qui posso ricavare la dash direction?
 
         Debug.Log("GN: " + groundNormal.magnitude + "; PGN: " + previousGroundNormal.magnitude + "; ON: " + overslopeNormal.magnitude);
-        //Debug.Break();
 
         previousGroundNormal = Vector3.zero;
 
-
-        //var jumpVector = Vector3.Project(gravity, jumpNormal) * gravityDampOnRise; //è qua che si potrebbe generare l'errore!
-        //var jumpVelocity = Mathf.Sqrt(2 * jumpHeight * jumpVector.magnitude);
-        //var velocity = rb.velocity;
-        //var angle = Vector3.Angle(gravity, -jumpNormal);
-        //var normalPlaneVelocity = angle >= minSlopeAngle ? Vector3.ProjectOnPlane(velocity, jumpNormal) : Vector3.zero;
-        //rb.velocity += jumpVelocity * jumpNormal - normalPlaneVelocity;
-
         var jumpVelocity = Mathf.Sqrt(2 * jumpHeight * gravity.magnitude * gravityDampOnRise);
-        //rb.AddForce(jumpVelocity / Time.fixedDeltaTime * jumpNormal, ForceMode.Acceleration);
 
         var velocity = rb.velocity;
         var angle = Vector3.Angle(gravity, -jumpNormal);
@@ -875,8 +879,6 @@ public class RollerBall : MonoBehaviour
         squashAndStretchController.localScale = Vector3.one;
         transform.localScale = Vector3.one;
         collider.radius = sphereRadius;
-
-        Debug.Log("Ho finito questa coroutine");
     }
     #endregion
     #region RENDER

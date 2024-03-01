@@ -17,6 +17,11 @@ public class RollerBallUserControl : MonoBehaviour
     private Vector3 desiredMovementDirection;
     private Vector3 lookDirection;
 
+    private Vector3 previousMovementDirection;
+
+    public enum GameMode { _3D , _2D }
+    [SerializeField] private GameMode gameMode;
+
 
     private void Awake()
     {
@@ -102,7 +107,15 @@ public class RollerBallUserControl : MonoBehaviour
                         //
                         break;
                     case PlayerState.Airborne:
-                        StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
+                        switch (gameMode)
+                        {
+                            case GameMode._3D:
+                                StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
+                                break;
+                            case GameMode._2D:
+                                StartCoroutine(ball.TryDash(desiredMovementDirection, previousMovementDirection)); // Dovrebbe prendere l'ultima direction
+                                break;
+                        }
                         break;
                     default:
 
@@ -125,7 +138,17 @@ public class RollerBallUserControl : MonoBehaviour
         // calculate camera relative direction to move:
         camForward = Vector3.Scale(cameraTransform.forward, new Vector3(1, 0, 1)).normalized;
         camRight = cameraTransform.right;
-        desiredMovementDirection = (moveInputDirection.y * camForward + moveInputDirection.x * camRight).normalized;
+        switch (gameMode)
+        {
+            case GameMode._3D:
+                desiredMovementDirection = (moveInputDirection.y * camForward + moveInputDirection.x * camRight).normalized;
+                break;
+            case GameMode._2D:
+                desiredMovementDirection = (moveInputDirection.x * camRight).normalized;
+                if (desiredMovementDirection != Vector3.zero) previousMovementDirection = desiredMovementDirection.normalized;
+                break;
+        }
+
         //Debug.DrawRay(transform.position, moveInputDirection, Color.grey);
     }
 
@@ -154,5 +177,19 @@ public class RollerBallUserControl : MonoBehaviour
         ball.AirborneMove(desiredMovementDirection);
     }
 
+    public void SwitchGameMode()
+    {
+        switch (gameMode)
+        {
+            case GameMode._3D:
+                gameMode = GameMode._2D;
+                break;
+            case GameMode._2D:
+                gameMode = GameMode._3D;
+                break;
+            default:
+                break;
+        }
+    }
     
 }
