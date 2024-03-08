@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-[CreateAssetMenu (fileName = "Movement data", menuName = "New 'Movement Data'")]
+[CreateAssetMenu (fileName = "Movement data", menuName = "Custom datas/Movement Data")]
 public class MovementData : ScriptableObject
 {
     [Tooltip("Time in seconds for the object to accelerate from zero to max speed."),

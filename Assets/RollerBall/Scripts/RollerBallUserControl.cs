@@ -101,27 +101,15 @@ public class RollerBallUserControl : MonoBehaviour
             case InputActionPhase.Waiting:
                 break;
             case InputActionPhase.Started:
-                switch (ball.state)
+                switch (gameMode)
                 {
-                    case PlayerState.Grounded:
-                        //
+                    case GameMode._3D:
+                        StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
                         break;
-                    case PlayerState.Airborne:
-                        switch (gameMode)
-                        {
-                            case GameMode._3D:
-                                StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
-                                break;
-                            case GameMode._2D:
-                                StartCoroutine(ball.TryDash(desiredMovementDirection, previousMovementDirection)); // Dovrebbe prendere l'ultima direction
-                                break;
-                        }
-                        break;
-                    default:
-
+                    case GameMode._2D:
+                        StartCoroutine(ball.TryDash(desiredMovementDirection, previousMovementDirection)); // Dovrebbe prendere l'ultima direction
                         break;
                 }
-
                 break;
             case InputActionPhase.Performed:
                 break;
