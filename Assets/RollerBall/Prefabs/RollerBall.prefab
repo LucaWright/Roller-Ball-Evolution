@@ -68,8 +68,8 @@ MonoBehaviour:
     slopeMovementData: {fileID: 11400000, guid: a241828fe4dd57848bb838303443f2f0, type: 2}
   fallSpeedCap: 12
   maxFallTime: 7
-  coyoteTime: 0.1
-  inputBuffer: 0.1
+  coyoteTime: 0.15
+  inputBuffer: 0.15
   jumpController:
   - jumpHeight: 2.5
     gravityDampOnRise: 1
@@ -161,7 +161,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  maxDashChain: 2
+  maxDashChain: 1
   chainedDashCooldown: 0.05
   rechargeDashSeriesOnGround: 1
   dashSeriesCooldown: 7
@@ -210,7 +210,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 112
-  m_CollisionDetection: 1
+  m_CollisionDetection: 2
 --- !u!135 &13500000
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -360,6 +360,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6f916a616d545d4c82fe7652f9cae9d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameMode: 0
 --- !u!114 &726326313677341151
 MonoBehaviour:
   m_ObjectHideFlags: 0

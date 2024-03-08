@@ -148,16 +148,23 @@ public class RollerBallUserControl : MonoBehaviour
                 if (desiredMovementDirection != Vector3.zero) previousMovementDirection = desiredMovementDirection.normalized;
                 break;
         }
+        ball.DrawGroundNormal();
 
         //Debug.DrawRay(transform.position, moveInputDirection, Color.grey);
     }
 
     private void FixedUpdate()
     {
+        
         switch (ball.state)
         {
             case PlayerState.Grounded:
                 OnFixedUpdateGrounded();
+                /* E se facessi un "internal collision check?"
+                 * Sparo uno spherecast, anticipo la collisione, aggiungo forze.
+                 * Va testato.
+                 * Questo refactoring si sta rilevando un casino totale
+                 */
                 break;
             case PlayerState.Airborne:
                 OnFixedUpdareAirborne();
@@ -190,6 +197,5 @@ public class RollerBallUserControl : MonoBehaviour
             default:
                 break;
         }
-    }
-    
+    }    
 }

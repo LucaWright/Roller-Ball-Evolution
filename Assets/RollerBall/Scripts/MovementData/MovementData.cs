@@ -21,7 +21,7 @@ public class MovementData : ScriptableObject
     [Tooltip("When enabled, allows direct setting of 'Acceleration' and 'Deceleration', bypassing the values in 'Acceleration Time' and 'Deceleration Time'.")]
     public bool manualMode = false;    
     [CustomInspector.ShowIf(nameof(manualMode), style = CustomInspector.DisabledStyle.GreyedOut),
-    Min(.0001f)] public float acceleration = 6f, deceleration = 2f;
+    Min(.0001f)] public float acceleration = 6f, deceleration = 2f; // Mettiamo Min a zero? Poi lo gestisce la funzione?
 
     void OnValidate()
     {
