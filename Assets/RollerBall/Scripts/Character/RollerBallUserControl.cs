@@ -11,8 +11,6 @@ public class RollerBallUserControl : MonoBehaviour
     private Transform cameraTransform; // A reference to the main camera in the scenes transform
     private Vector3 camForward, camRight; // The current forward direction of the camera
     private Vector3 moveInputDirection, lookInputDirection;
-    private bool jumpButton;
-    private bool dashButton;
 
     private Vector3 desiredMovementDirection;
     private Vector3 lookDirection;
@@ -52,10 +50,6 @@ public class RollerBallUserControl : MonoBehaviour
     {
         switch (context.phase)
         {
-            case InputActionPhase.Disabled:
-                break;
-            case InputActionPhase.Waiting:
-                break;
             case InputActionPhase.Started:
                 StartCoroutine(ball.TryJump());
                 switch (ball.state)
@@ -71,8 +65,6 @@ public class RollerBallUserControl : MonoBehaviour
                         break;
                 }
                 
-                break;
-            case InputActionPhase.Performed:
                 break;
             case InputActionPhase.Canceled:
                 switch (ball.state)
@@ -96,22 +88,25 @@ public class RollerBallUserControl : MonoBehaviour
     {
         switch (context.phase)
         {
-            case InputActionPhase.Disabled:
-                break;
-            case InputActionPhase.Waiting:
-                break;
             case InputActionPhase.Started:
-                switch (gameMode)
+                switch (ball.state)
                 {
-                    case GameMode._3D:
-                        StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
+                    case PlayerState.Grounded:
                         break;
-                    case GameMode._2D:
-                        StartCoroutine(ball.TryDash(desiredMovementDirection, previousMovementDirection)); // Dovrebbe prendere l'ultima direction
+                    case PlayerState.Airborne:
+                        switch (gameMode)
+                        {
+                            case GameMode._3D:
+                                StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
+                                break;
+                            case GameMode._2D:
+                                StartCoroutine(ball.TryDash(desiredMovementDirection, previousMovementDirection));
+                                break;
+                        }
                         break;
-                }
-                break;
-            case InputActionPhase.Performed:
+                    default:
+                        break;
+                }                
                 break;
             case InputActionPhase.Canceled:
                 break;
@@ -136,9 +131,6 @@ public class RollerBallUserControl : MonoBehaviour
                 if (desiredMovementDirection != Vector3.zero) previousMovementDirection = desiredMovementDirection.normalized;
                 break;
         }
-        ball.DrawGroundNormal();
-
-        //Debug.DrawRay(transform.position, moveInputDirection, Color.grey);
     }
 
     private void FixedUpdate()
@@ -148,11 +140,6 @@ public class RollerBallUserControl : MonoBehaviour
         {
             case PlayerState.Grounded:
                 OnFixedUpdateGrounded();
-                /* E se facessi un "internal collision check?"
-                 * Sparo uno spherecast, anticipo la collisione, aggiungo forze.
-                 * Va testato.
-                 * Questo refactoring si sta rilevando un casino totale
-                 */
                 break;
             case PlayerState.Airborne:
                 OnFixedUpdareAirborne();

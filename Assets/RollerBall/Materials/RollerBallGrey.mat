@@ -19,6 +19,7 @@ Material:
   - _COLOROVERLAY_ON
   - _LIGHTMAPPING_BAKED
   - _LIGHTMAPPING_STATIC_LIGHTMAPS
+  - _SPECGLOSSMAP
   - _UVPRIM_UV1
   - _UVSEC_UV1
   m_LightmapFlags: 0
@@ -53,7 +54,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 7700d93a317c89246a647c7a6c3e7399, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -73,7 +74,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SpecGlossMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 7700d93a317c89246a647c7a6c3e7399, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -99,12 +100,12 @@ Material:
     - _EmissionScale: 1
     - _EmissionScaleUI: 1
     - _FlipbookMode: 0
-    - _GlossMapScale: 1
+    - _GlossMapScale: 0.5
     - _Glossiness: 0.4
     - _GlossyReflections: 1
     - _LightingEnabled: 0
     - _Lightmapping: 0
-    - _Metallic: 0
+    - _Metallic: 0.5
     - _Mode: 3
     - _OcclusionStrength: 1
     - _Parallax: 0.02
@@ -119,7 +120,7 @@ Material:
     - _ZWrite: 0
     m_Colors:
     - _CameraFadeParams: {r: 0, g: Infinity, b: 0, a: 0}
-    - _Color: {r: 0.103773594, g: 0.103773594, b: 0.103773594, a: 0.6862745}
+    - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 0.78431374}
     - _ColorAddSubDiff: {r: 1, g: 0, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _EmissionColorUI: {r: 0, g: 0, b: 0, a: 1}
