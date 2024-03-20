@@ -30,22 +30,31 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
-    public int score { get; private set; } = 0;
-    #region 🡹WTF IS THAT? PUBLIC GET, PRIVATE SET
-    /* "public get" does mean that any class can read the value.
-     * "private set" means that only the class that declares the property (in this case, the Game Manager) can change the value.
-     * For all other classes, this property behaves as a “read-only” variable.
-     */
-    #endregion
+    private Vector3 checkpoint;
+    private GameObject player;
 
-    // Events
-    public UnityEvent OnScoreEvent;
-    public UnityEvent GameOverEvent;
+    [SerializeField] private UnityEvent OnReloadCheckpoint;
+    [SerializeField] private UnityEvent OnGameOver;
+
+
+    private void Start()
+    {
+        player = GameObject.FindGameObjectWithTag("Player");
+        checkpoint = player.transform.position;
+    }
+
+    public void SetCheckpoint(Transform newTransform)
+    {
+        checkpoint = newTransform.position;
+    }
+
+    public void ReloadCheckpoint()
+    {
+        player.transform.position = checkpoint;
+    }
 
     public void RestartScene()
     {
         EditorSceneManager.LoadScene(0);
-        Time.timeScale = 1f;
-        score = 0;
     }
 }

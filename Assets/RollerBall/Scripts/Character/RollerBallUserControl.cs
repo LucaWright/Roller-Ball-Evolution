@@ -7,9 +7,9 @@ using UnityEngine.InputSystem.Interactions;
 public class RollerBallUserControl : MonoBehaviour
 {
     private RollerBall ball;
-    
+
     private Transform cameraTransform; // A reference to the main camera in the scenes transform
-    private Vector3 camForward, camRight; // The current forward direction of the camera
+    private Vector3 camForward, camUp, camRight; // The current forward direction of the camera
     private Vector3 moveInputDirection, lookInputDirection;
 
     private Vector3 desiredMovementDirection;
@@ -17,7 +17,7 @@ public class RollerBallUserControl : MonoBehaviour
 
     private Vector3 previousMovementDirection;
 
-    public enum GameMode { _3D , _2D }
+    public enum GameMode { _3D, _2DSide, _2DTopdown }
     [SerializeField] private GameMode gameMode;
 
 
@@ -99,18 +99,15 @@ public class RollerBallUserControl : MonoBehaviour
                             case GameMode._3D:
                                 StartCoroutine(ball.TryDash(desiredMovementDirection, camForward));
                                 break;
-                            case GameMode._2D:
+                            case GameMode._2DSide:
+                            case GameMode._2DTopdown:
                                 StartCoroutine(ball.TryDash(desiredMovementDirection, previousMovementDirection));
                                 break;
                         }
                         break;
-                    default:
-                        break;
-                }                
+                }
                 break;
             case InputActionPhase.Canceled:
-                break;
-            default:
                 break;
         }
     }
@@ -118,19 +115,26 @@ public class RollerBallUserControl : MonoBehaviour
 
     private void Update()
     {
-        // calculate camera relative direction to move:
         camForward = Vector3.Scale(cameraTransform.forward, new Vector3(1, 0, 1)).normalized;
+        camUp = Vector3.Scale(cameraTransform.up, new Vector3(1, 0, 1)).normalized;
         camRight = cameraTransform.right;
         switch (gameMode)
         {
             case GameMode._3D:
                 desiredMovementDirection = (moveInputDirection.y * camForward + moveInputDirection.x * camRight).normalized;
                 break;
-            case GameMode._2D:
+            case GameMode._2DSide:
                 desiredMovementDirection = (moveInputDirection.x * camRight).normalized;
                 if (desiredMovementDirection != Vector3.zero) previousMovementDirection = desiredMovementDirection.normalized;
                 break;
+            case GameMode._2DTopdown:
+                desiredMovementDirection = (moveInputDirection.y * camUp + moveInputDirection.x * camRight).normalized;
+                if (desiredMovementDirection != Vector3.zero) previousMovementDirection = desiredMovementDirection.normalized;
+                break;
         }
+
+        ball.DrawDebugRays();
+        Debug.DrawRay(ball.transform.position, desiredMovementDirection, Color.gray);
     }
 
     private void FixedUpdate()
@@ -159,18 +163,23 @@ public class RollerBallUserControl : MonoBehaviour
         ball.AirborneMove(desiredMovementDirection);
     }
 
-    public void SwitchGameMode()
+    public void SwitchGameMode(GameMode mode)
     {
-        switch (gameMode)
-        {
-            case GameMode._3D:
-                gameMode = GameMode._2D;
-                break;
-            case GameMode._2D:
-                gameMode = GameMode._3D;
-                break;
-            default:
-                break;
-        }
-    }    
+        gameMode = mode;
+    }
+
+    public void SwitchGameMode_3D()
+    {
+        gameMode = GameMode._3D;
+    }
+
+    public void SwitchGameMode_2DSide()
+    {
+        gameMode = GameMode._2DSide;
+    }
+
+    public void SwitchGameMode_2DTopDown()
+    {
+        gameMode = GameMode._2DTopdown;
+    }
 }

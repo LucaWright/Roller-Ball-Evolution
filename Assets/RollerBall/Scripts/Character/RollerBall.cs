@@ -33,14 +33,16 @@ public class RollerBall : MonoBehaviour
     [Tooltip("When colliding with a steep wall, always applies a minimal impulse that changes momentum."),
      SerializeField] private bool shiftMomentumOnCollision;
     [SerializeField,
-     Range(0, 1)] private float steepFriction = .66f;
+     Range(0, 1)] private float steepFactor = .66f;
     [Space]
     [SerializeField] private MovementData airMovement;
     [SerializeField] private bool hasSpeedCappedOnJump = true;
     [SerializeField] private bool canChangeDirectionInAir = true;
-    private float takeoffSpeed;
     [Space]
     [SerializeField] private UnityEvent OnTurning;
+    private float takeoffSpeed;
+    private MovementData groundMovementOverride;
+    private MovementData airMovementOverride;
 
 
     [CustomInspector.HorizontalLine("Slopes", 5, FixedColor.Gray)]
@@ -154,8 +156,10 @@ public class RollerBall : MonoBehaviour
     }
     private void Update() //debug
     {
+        string groundTilt = state != PlayerState.Airborne ? groundType.ToString() : "None";
+        
         debugPanel.text = "State: " + state +
-                            "<br>Ground Type: " + /*activeMovementData*/ groundType +
+                            "<br>Ground Type: " + /*activeMovementData*/ groundTilt +
                             "<br>Movement Speed: " + Mathf.RoundToInt(Vector3.ProjectOnPlane(rb.velocity, GetGroundNormal()).magnitude * 100f) / 100f /*+
                             "<br>Character Speed: " + Mathf.RoundToInt(rb.velocity.magnitude * 100f) / 100f*/;
 
@@ -358,10 +362,6 @@ public class RollerBall : MonoBehaviour
                 groundNormal = Vector3.zero;
             }
         }
-        //else
-        //{
-        //    Debug.Log("Airborne"); // Should never be
-        //}
     }
 
     void EvaluateSlopeMovementData()
@@ -382,7 +382,7 @@ public class RollerBall : MonoBehaviour
     float AutoSlopeModifier(Vector3 normal)
     {
         var angle = Vector3.Angle(Physics.gravity, -normal);
-        var value = Mathf.Clamp((angle - minSlopeAngle) / (maxSlopeAngle - minSlopeAngle), 0, steepFriction);
+        var value = Mathf.Clamp((angle - minSlopeAngle) / (maxSlopeAngle - minSlopeAngle), 0, steepFactor);
         return 1f - value;
     }
     #endregion
@@ -394,7 +394,8 @@ public class RollerBall : MonoBehaviour
 
         var movementPlaneNormal = GetGroundNormal() != Vector3.zero ? GetGroundNormal() : -Physics.gravity.normalized; // Should never be zero
 
-        if (movementPlaneNormal != Vector3.up) desiredDirection = RotateVector(desiredDirection, movementPlaneNormal);
+        //if (movementPlaneNormal != Vector3.up)
+            desiredDirection = RotateVector(desiredDirection, movementPlaneNormal);
 
         var normalPlaneVelocity = Vector3.ProjectOnPlane(rb.velocity, movementPlaneNormal);
         var normalAlignedVelocity = Vector3.Project(rb.velocity, movementPlaneNormal);
@@ -427,6 +428,7 @@ public class RollerBall : MonoBehaviour
 
         rb.velocity = normalPlaneVelocity + normalAlignedVelocity;
     }
+
     private void UpdateVelocityOnFlatGround(ref Vector3 normalPlaneVelocity, Vector3 desiredDirection, Vector3 movementPlaneNormal)
     {
         if (desiredDirection * autoSlopeModifier != Vector3.zero)
@@ -461,6 +463,12 @@ public class RollerBall : MonoBehaviour
             normalPlaneVelocity = Vector3.MoveTowards(normalPlaneVelocity, desiredDirection * maxSpeed, acceleration * Time.fixedDeltaTime);
             rb.AddForce(-1f * GravityProjectionOnPlane(movementPlaneNormal), ForceMode.Acceleration);
         }
+        else if (desiredDirection * autoSlopeModifier != Vector3.zero && directionDotClimb < 0)
+        {
+            //Do Stuff
+            normalPlaneVelocity = Vector3.MoveTowards(normalPlaneVelocity, Vector3.zero, deceleration * Time.fixedDeltaTime);
+            normalPlaneVelocity = Vector3.ClampMagnitude(normalPlaneVelocity, fallSpeedCap);
+        }
         else
         {
             normalPlaneVelocity = Vector3.MoveTowards(normalPlaneVelocity, Vector3.zero, deceleration * Time.fixedDeltaTime);
@@ -472,8 +480,8 @@ public class RollerBall : MonoBehaviour
     {
         if (desiredDirection != Vector3.zero)
         {
-            acceleration *= steepFriction;
-            acceleration = Mathf.Clamp(acceleration, 0, Physics.gravity.magnitude);
+            acceleration *= steepFactor;
+            acceleration = Mathf.Clamp(acceleration, 0, GravityProjectionOnPlane(movementPlaneNormal).magnitude);
             normalPlaneVelocity = Vector3.MoveTowards(normalPlaneVelocity, desiredDirection * maxSpeed, acceleration * Time.fixedDeltaTime);
             OnTurning.Invoke();
         }
@@ -531,7 +539,19 @@ public class RollerBall : MonoBehaviour
     #endregion
     void SwitchMovementData(MovementData newMovementData)
     {
-        activeMovementData = newMovementData;
+        switch (state)
+        {
+            case PlayerState.Grounded:
+                activeMovementData = groundMovementOverride == null ? newMovementData : groundMovementOverride;
+                break;
+            case PlayerState.Airborne:
+                activeMovementData = airMovementOverride == null ? newMovementData : airMovementOverride;
+                break;
+            default:
+                break;
+        }
+
+        activeMovementData =  newMovementData;
     }
     private Vector3 RotateVector(Vector3 vectorToRotate, Vector3 planeNormal)
     {
@@ -647,6 +667,7 @@ public class RollerBall : MonoBehaviour
         var jumpEvent = jumpDatas[jumpCount].OnJump;
 
         var jumpNormal = GetGroundNormal() != Vector3.zero ? GetGroundNormal() : -gravity.normalized; // Security check
+        // Cambiare? In base allo stato?
         Debug.DrawRay(transform.position, GetGroundNormal(), Color.white, 3f); 
 
         var jumpVelocity = Mathf.Sqrt(2 * jumpHeight * gravity.magnitude * gravityDampOnRise);
@@ -654,7 +675,8 @@ public class RollerBall : MonoBehaviour
         var velocity = rb.velocity;
         var angle = Vector3.Angle(gravity, -jumpNormal);
         var normalPlaneVelocity = angle >= minSlopeAngle ? Vector3.ProjectOnPlane(velocity, jumpNormal) : Vector3.zero;
-        rb.velocity += jumpVelocity * jumpNormal - normalPlaneVelocity;
+        var normalAlignedVelocity = Vector3.Project(velocity, jumpNormal);
+        rb.velocity += jumpVelocity * jumpNormal - normalPlaneVelocity - normalAlignedVelocity;
 
         takeoffSpeed = Mathf.Clamp(Vector3.ProjectOnPlane(velocity, gravity).magnitude, 0, airMovement.maxSpeed);
 
@@ -871,5 +893,28 @@ public class RollerBall : MonoBehaviour
         Camera.onPostRender -= SquashAndStretchPostRender;
     }
     #endregion
+
+    public void SetGroundedMovementOverride(MovementData data)
+    {
+        groundMovementOverride = data;
+    }
+
+    public void SetAirMovementOverride(MovementData data)
+    {
+        airMovementOverride = data;
+    }
+
+    public void DrawDebugRays()
+    {
+        // Normal
+        Debug.DrawRay(transform.position, GetGroundNormal(), Color.green);
+        // Velocity
+        Debug.DrawRay(transform.position, rb.velocity, Color.blue);
+    }
+
+    public float GetMinSlopeAngle()
+    {
+        return minSlopeAngle;
+    }
 }
 
