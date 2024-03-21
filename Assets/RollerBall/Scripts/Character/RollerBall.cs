@@ -48,8 +48,10 @@ public class RollerBall : MonoBehaviour
     [CustomInspector.HorizontalLine("Slopes", 5, FixedColor.Gray)]
     [Tooltip("The minimum slope angle (value excluded) the player can climb."),
      SerializeField, Range(0f, 89.9f)] private float minSlopeAngle = 0f;
-    [Tooltip("The maximum slope angle (value included) the player can climb."),
-    SerializeField, Range(0f, 89.9f)] private float maxSlopeAngle = 45f;
+    [Tooltip("The maximum slope angle the player can climb."),
+     SerializeField, Range(0f, 89.9f)] private float maxSlopeAngle = 45f;
+    [Tooltip("Evaluate if Max Slope Angle value is inclusive or exclusive"),
+     SerializeField] private bool isMaxSlopeAngleExclusive = true;
 
     [Tooltip("Automatically handles the forces acting on the player during slopes."),
      SerializeField] private bool autoSlope = true;
@@ -58,8 +60,8 @@ public class RollerBall : MonoBehaviour
      SerializeField] private SlopeHandler[] manualSlopes;
     [System.Serializable] public struct SlopeHandler
     {
-        [Range(0f, 89.9f)] public float lowerAngle;
-        [Range(0f, 89.9f)] public float higherAngle;
+        //[Range(0f, 90f)] public float lowerAngle; //Non serve
+        [Range(0f, 90f)] public float limitAngle;
         public MovementData slopeMovementData;
     }
 
@@ -133,33 +135,24 @@ public class RollerBall : MonoBehaviour
         for (int i = 0; i < manualSlopes.Length; i++)
         {
             var slope = manualSlopes[i];
-            var lowerAngle = slope.lowerAngle;
-            var higherAngle = slope.higherAngle;
-            if (i == 0)
-            {
-                higherAngle = Mathf.Min(higherAngle, maxSlopeAngle);
-                lowerAngle = Mathf.Min(lowerAngle, higherAngle);
-                lowerAngle = Mathf.Max(minSlopeAngle, lowerAngle);
-                higherAngle = Mathf.Max(lowerAngle, higherAngle);
-            }
-            else
-            {
-                higherAngle = Mathf.Min(higherAngle, maxSlopeAngle);
-                var previousSlope = manualSlopes[Mathf.Max(0, i - 1)];
-                lowerAngle = previousSlope.higherAngle;
-                higherAngle = Mathf.Max(lowerAngle, higherAngle);
-            }
+            var limitAngle = slope.limitAngle;
+            var lowerAngle = (i - 1) < 0 ? minSlopeAngle : manualSlopes[i - 1].limitAngle;
 
-            manualSlopes[i].lowerAngle = lowerAngle;
-            manualSlopes[i].higherAngle = higherAngle;
+            limitAngle = Mathf.Max(lowerAngle + .1f, limitAngle);
+            limitAngle = Mathf.Min(limitAngle, maxSlopeAngle);
+
+            manualSlopes[i].limitAngle = limitAngle;
         }
+
+        manualSlopes[manualSlopes.Length - 1].limitAngle = maxSlopeAngle;
     }
     private void Update() //debug
     {
         string groundTilt = state != PlayerState.Airborne ? groundType.ToString() : "None";
-        
+
         debugPanel.text = "State: " + state +
                             "<br>Ground Type: " + /*activeMovementData*/ groundTilt +
+                            "<br>" + activeMovementData +
                             "<br>Movement Speed: " + Mathf.RoundToInt(Vector3.ProjectOnPlane(rb.velocity, GetGroundNormal()).magnitude * 100f) / 100f /*+
                             "<br>Character Speed: " + Mathf.RoundToInt(rb.velocity.magnitude * 100f) / 100f*/;
 
@@ -349,18 +342,22 @@ public class RollerBall : MonoBehaviour
             {
                 SwitchGroundTilt(GroundTilt.Flat);
             }
-            else if (terrainAngle > minSlopeAngle && terrainAngle <= maxSlopeAngle)
+            else
             {
-                SwitchGroundTilt(GroundTilt.Slope);
-            }
-            else if (terrainAngle > maxSlopeAngle && terrainAngle <= 90f)
-            {
-                SwitchGroundTilt(GroundTilt.Steep);
-            }
-            else // terrain > 90
-            {
-                groundNormal = Vector3.zero;
-            }
+                bool isSlope = isMaxSlopeAngleExclusive ? terrainAngle < maxSlopeAngle : terrainAngle <= maxSlopeAngle;
+                if (terrainAngle > minSlopeAngle && isSlope)
+                {
+                    SwitchGroundTilt(GroundTilt.Slope);
+                }
+                else if (terrainAngle <= 90f)
+                {
+                    SwitchGroundTilt(GroundTilt.Steep);
+                }
+                else // terrain > 90
+                {
+                    groundNormal = Vector3.zero;
+                }
+            }                 
         }
     }
 
@@ -371,8 +368,9 @@ public class RollerBall : MonoBehaviour
         for (int i = 0; i < manualSlopes.Length; i++)
         {
             var slope = manualSlopes[i];
+            bool isInsideLimit = isMaxSlopeAngleExclusive ? angle < slope.limitAngle : angle <= slope.limitAngle;
 
-            if (angle > slope.lowerAngle && angle <= slope.higherAngle)
+            if (isInsideLimit) 
             {
                 SwitchMovementData(slope.slopeMovementData);
                 return;

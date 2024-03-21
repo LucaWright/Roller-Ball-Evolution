@@ -56,7 +56,7 @@ MonoBehaviour:
   squashAndStretchController: {fileID: 0}
   groundMovement: {fileID: 11400000, guid: 92b091f6cf049e745a9cfb6a3df1f601, type: 2}
   shiftMomentumOnCollision: 0
-  steepFriction: 0.66
+  steepFactor: 0.6
   airMovement: {fileID: 11400000, guid: c4f8fd7f422150f4eb74fa543b0b9c03, type: 2}
   hasSpeedCappedOnJump: 0
   canChangeDirectionInAir: 1
@@ -76,14 +76,13 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
   minSlopeAngle: 15
-  maxSlopeAngle: 44.9
+  maxSlopeAngle: 45
+  isMaxAngleExcluded: 1
   autoSlope: 0
   manualSlopes:
-  - lowerAngle: 15
-    higherAngle: 30
+  - limitAngle: 30
     slopeMovementData: {fileID: 11400000, guid: c983854a449e3514f8fc411ce1841080, type: 2}
-  - lowerAngle: 30
-    higherAngle: 44.9
+  - limitAngle: 45
     slopeMovementData: {fileID: 11400000, guid: a241828fe4dd57848bb838303443f2f0, type: 2}
   fallSpeedCap: 12
   coyoteTime: 0.15
@@ -128,7 +127,6 @@ MonoBehaviour:
             m_BoolArgument: 0
           m_CallState: 2
   debugPanel: {fileID: 0}
-  particles: {fileID: 0}
 --- !u!54 &5400000
 Rigidbody:
   m_ObjectHideFlags: 0

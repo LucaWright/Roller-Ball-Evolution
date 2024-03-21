@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3466110289226556727}
+  - component: {fileID: 7101787740792914429}
   m_Layer: 0
   m_Name: Emitter
   m_TagString: Untagged
@@ -31,6 +32,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 5806326490809760530}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7101787740792914429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1212674501603475375}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fd372a753549364c9a415a1f006e5c8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bulletPrefab: {fileID: 2303846882064439897, guid: ff2279743f455544a880a2653cdc56b6, type: 3}
+  fireRatio: 1
+  bulletLifetime: 3
 --- !u!1 &3076058023205088742
 GameObject:
   m_ObjectHideFlags: 0
@@ -3207,7 +3223,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5806326490809760530}
-  - component: {fileID: 8340792626695297205}
   m_Layer: 0
   m_Name: Cannon
   m_TagString: Untagged
@@ -3233,19 +3248,3 @@ Transform:
   - {fileID: 3466110289226556727}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8340792626695297205
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4872435335614501773}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e13feafd643d59a4ca7b2b7a7de0eea5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  bulletPrefab: {fileID: 2303846882064439897, guid: ff2279743f455544a880a2653cdc56b6, type: 3}
-  bulletPoolSize: 5
-  bulletEmitter: {fileID: 3466110289226556727}
-  fireRatio: 0.5
